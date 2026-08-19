@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,300..900,0..1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EEF0E6;
+    --surface:#FCFCF7;
+    --surface-2:#F4F5EC;
+    --ink:#1E2A22;
+    --ink-soft:#4B564C;
+    --muted:#7C8478;
+    --line:rgba(30,42,34,0.11);
+    --line-strong:rgba(30,42,34,0.20);
+    --jade:#2A6B57;
+    --jade-deep:#1D4E3F;
+    --jade-soft:#BFD6C9;
+    --amber:#CE8A34;
+    --amber-deep:#A0691F;
+    --amber-soft:#EFD9B2;
+    --plum:#7A4560;
+    --plum-soft:#DDC5D2;
+    --sage:#7E9683;
+    --sage-soft:#D6E0D6;
+    --grey-bar:#C7CABF;
+    --radius:14px;
+    --shadow: 0 1px 2px rgba(30,42,34,0.06), 0 8px 24px -12px rgba(30,42,34,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:32px 20px 60px;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(30,42,34,0.06) 1px, transparent 0);
+    background-size:22px 22px;
+  }
+  a{color:var(--jade-deep);}
+  :focus-visible{outline:2px solid var(--jade); outline-offset:2px;}
+
+  .wrap{max-width:1180px; margin:0 auto;}
+
+  /* ---------- HEADER ---------- */
+  header{
+    position:relative;
+    padding:8px 4px 26px;
+    margin-bottom:22px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--jade-deep);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--amber); box-shadow:0 0 0 3px var(--amber-soft);}
+  h1{
+    font-family:'Fraunces', serif;
+    font-optical-sizing:auto;
+    font-weight:600;
+    font-size:clamp(30px, 4.4vw, 50px);
+    line-height:1.02;
+    letter-spacing:-0.01em;
+    margin:0 0 10px;
+  }
+  h1 em{font-style:italic; font-weight:400; color:var(--jade-deep);}
+  .subtitle{
+    font-size:16px;
+    color:var(--ink-soft);
+    max-width:640px;
+    line-height:1.5;
+    margin:0;
+  }
+  .meta-row{
+    display:flex; flex-wrap:wrap; gap:10px 22px;
+    margin-top:18px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .meta-row span b{color:var(--ink-soft); font-weight:600;}
+  .pulse-wrap{
+    position:absolute; right:0; top:10px; width:min(320px, 34vw); height:60px;
+    opacity:.85;
+  }
+  @media (max-width: 720px){ .pulse-wrap{display:none;} }
+
+  .pulse-line{fill:none; stroke:var(--jade); stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  .pulse-dot{fill:var(--amber);}
+  @media (prefers-reduced-motion: no-preference){
+    .pulse-line{stroke-dasharray:520; stroke-dashoffset:520; animation:draw 1.6s ease-out .1s forwards;}
+    .kpi-num{opacity:0; transform:translateY(6px); animation:rise .6s ease-out forwards;}
+  }
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  @keyframes rise{to{opacity:1; transform:translateY(0);}}
+
+  hr.rule{
+    border:none; height:1px; background:var(--line-strong);
+    margin:34px 0;
+  }
+
+  /* ---------- KPI ROW ---------- */
+  .kpis{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:14px;
+    margin-bottom:30px;
+  }
+  @media (max-width:860px){ .kpis{grid-template-columns:repeat(2,1fr);} }
+  .kpi{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    box-shadow:var(--shadow);
+  }
+  .kpi .label{
+    font-size:12px; letter-spacing:.04em; color:var(--muted);
+    text-transform:uppercase; font-weight:500; margin-bottom:8px;
+  }
+  .kpi-num{
+    font-family:'Fraunces', serif; font-weight:600; font-size:34px; color:var(--jade-deep);
+    line-height:1; margin-bottom:6px; animation-delay:.05s;
+  }
+  .kpi .sub{font-size:12.5px; color:var(--ink-soft); line-height:1.4;}
+  .kpi.accent .kpi-num{color:var(--amber-deep);}
+
+  /* ---------- CHART CARDS ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:1.55fr 1fr;
+    grid-template-areas:
+      "timeline timeline"
+      "role exp"
+      "speakerq speakerq"
+      "topics topics";
+    gap:16px;
+  }
+  @media (max-width:860px){
+    .grid{grid-template-columns:1fr; grid-template-areas:"timeline" "role" "exp" "speakerq" "topics";}
+  }
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px 22px 20px;
+    box-shadow:var(--shadow);
+  }
+  #timeline-card{grid-area:timeline;}
+  #role-card{grid-area:role;}
+  #exp-card{grid-area:exp;}
+  #speakerq-card{grid-area:speakerq;}
+  #topics-card{grid-area:topics;}
+
+  .card-head{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    gap:12px; margin-bottom:6px; flex-wrap:wrap;
+  }
+  .card-title{
+    font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin:0 0 3px;
+  }
+  .card-desc{font-size:12.5px; color:var(--muted); max-width:46ch; line-height:1.4;}
+
+  .toggle{
+    display:inline-flex; background:var(--surface-2); border:1px solid var(--line);
+    border-radius:999px; padding:3px; gap:2px; flex-shrink:0;
+  }
+  .toggle button{
+    border:none; background:transparent; font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px; padding:6px 12px; border-radius:999px; cursor:pointer;
+    color:var(--ink-soft); transition:background .15s, color .15s;
+  }
+  .toggle button.active{background:var(--jade); color:#fff;}
+  .toggle button:hover:not(.active){background:var(--jade-soft);}
+
+  svg.chart{width:100%; height:auto; display:block; overflow:visible;}
+  .bar-label{font-family:'IBM Plex Sans'; font-size:12.5px; fill:var(--ink-soft); font-weight:500;}
+  .bar-value{font-family:'IBM Plex Mono', monospace; font-size:12px; fill:var(--ink); font-weight:600;}
+  .axis-label{font-family:'IBM Plex Mono', monospace; font-size:11px; fill:var(--muted);}
+  .bar-rect{transition:opacity .15s;}
+  .bar-rect:hover{opacity:.82;}
+  .donut-seg{transition:transform .15s; transform-origin:center; cursor:default;}
+  .donut-seg:hover{transform:scale(1.035);}
+
+  .legend{display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:14px;}
+  .legend-item{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-soft);}
+  .legend-swatch{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+
+  .footnote{font-size:11.5px; color:var(--muted); margin-top:14px; line-height:1.5;}
+
+  /* ---------- SPEAKER QUESTION CLUSTERS ---------- */
+  .qclusters{display:flex; flex-direction:column; gap:4px; margin-top:8px;}
+  .qcluster{display:grid; grid-template-columns:40px 1fr; gap:14px; padding:16px 0; border-top:1px solid var(--line);}
+  .qcluster:first-child{border-top:none; padding-top:6px;}
+  .qrank{
+    font-family:'Fraunces', serif; font-weight:600; font-size:26px; color:var(--jade-soft);
+    line-height:1;
+  }
+  .qcluster-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px;}
+  .qcluster-title{font-family:'IBM Plex Sans'; font-weight:600; font-size:14.5px; color:var(--ink);}
+  .qcount{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--jade-deep);
+    background:var(--jade-soft); padding:2px 9px; border-radius:999px; white-space:nowrap;
+  }
+  .qlist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px;}
+  .qlist li{
+    font-size:14px; line-height:1.5; color:var(--ink-soft);
+    padding-left:16px; position:relative;
+  }
+  .qlist li::before{
+    content:"\201C"; position:absolute; left:0; top:-2px;
+    font-family:'Fraunces', serif; color:var(--amber); font-size:16px;
+  }
+  .qlist li b{color:var(--ink); font-weight:600;}
+  .qtag{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--amber-deep);
+    margin-left:6px; white-space:nowrap;
+  }
+
+  footer{
+    margin-top:30px; padding-top:18px; border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--muted);
+  }
+
+  /* ---------- PRINT / PDF EXPORT ---------- */
+  @media print{
+    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ background-image:none; padding:0 26px 30px; }
+    .toggle{ display:none; }
+    .pulse-wrap{ display:none; }
+    .card, .kpi, .qcluster, .notes{ break-inside:avoid; page-break-inside:avoid; }
+    .grid{ break-inside:auto; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="pulse-wrap" aria-hidden="true">
+      <svg viewBox="0 0 320 60" width="100%" height="100%">
+        <path class="pulse-line" d="M0,40 L60,40 L78,14 L96,52 L112,26 L128,40 L180,40 L198,20 L214,44 L230,32 L248,40 L320,40"/>
+        <circle class="pulse-dot" cx="320" cy="40" r="4"/>
+      </svg>
+    </div>
+    <div class="eyebrow"><span class="dot"></span> MAKE AI PRACTICAL · MAP CONNECT</div>
+    <h1>Registration dashboard<br>__EVENT_TITLE_HTML__</h1>
+    <div class="meta-row">
+      <span>Data window: <b>__DATA_WINDOW__</b></span>
+      <span>Source: <b>__SOURCE_LABEL__</b></span>
+      <span id="generated-at">Generated: <b>—</b></span>
+    </div>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi">
+      <div class="label">Total registrations</div>
+      <div class="kpi-num" data-count="__KPI_TOTAL__">0</div>
+      <div class="sub">__KPI_TOTAL_SUB__</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Peak signup day</div>
+      <div class="kpi-num" data-count="__KPI_PEAK__">0</div>
+      <div class="sub">__KPI_PEAK_SUB__</div>
+    </div>
+    <div class="kpi accent">
+      <div class="label">Already regular / advanced AI users</div>
+      <div class="kpi-num" data-count="__KPI_EXP_PCT__" data-suffix="%">0</div>
+      <div class="sub">__KPI_EXP_SUB__</div>
+    </div>
+    <div class="kpi accent">
+      <div class="label">Left a question or topic ask</div>
+      <div class="kpi-num" data-count="__KPI_ENG_PCT__" data-suffix="%">0</div>
+      <div class="sub">__KPI_ENG_SUB__</div>
+    </div>
+  </section>
+
+  <div class="grid">
+
+    <!-- TIMELINE -->
+    <div class="card" id="timeline-card">
+      <div class="card-head">
+        <div>
+          <p class="card-title">Registrations over time</p>
+          <p class="card-desc">__TIMELINE_DESC__</p>
+        </div>
+        <div class="toggle" id="timeline-toggle" role="group" aria-label="Chart view">
+          <button class="active" data-mode="daily">Daily</button>
+          <button data-mode="cumulative">Cumulative</button>
+        </div>
+      </div>
+      <svg class="chart" id="timeline-chart" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="footnote">__TIMELINE_FOOTNOTE__</div>
+    </div>
+
+    <!-- ROLE -->
+    <div class="card" id="role-card">
+      <div class="card-head">
+        <div>
+          <p class="card-title">Role / industry breakdown</p>
+          <p class="card-desc">__ROLE_DESC__</p>
+        </div>
+        <div class="toggle" id="role-toggle" role="group" aria-label="Role view">
+          <button class="active" data-mode="split">Split</button>
+          <button data-mode="raw">Raw combos</button>
+        </div>
+      </div>
+      <svg class="chart" id="role-chart" viewBox="0 0 560 300" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="footnote" id="role-footnote">Tech/IT leads, but 9 attendees selected more than one role — several wear a Tech + Product + Data + Business hat at once.</div>
+    </div>
+
+    <!-- EXPERIENCE -->
+    <div class="card" id="exp-card">
+      <div class="card-head">
+        <div>
+          <p class="card-title">AI experience level</p>
+          <p class="card-desc">Self-reported on registration.</p>
+        </div>
+      </div>
+      <svg class="chart" id="exp-chart" viewBox="0 0 280 280" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="legend" id="exp-legend"></div>
+    </div>
+
+    <!-- SPEAKER QUESTIONS -->
+    <div class="card" id="speakerq-card">
+      <div class="card-head">
+        <div>
+          <p class="card-title">Questions for the speaker</p>
+          <p class="card-desc">__SPEAKERQ_DESC__</p>
+        </div>
+      </div>
+      <div class="qclusters">
+__SPEAKERQ_CLUSTERS_HTML__
+      </div>
+    </div>
+
+    <!-- FUTURE TOPICS -->
+    <div class="card" id="topics-card">
+      <div class="card-head">
+        <div>
+          <p class="card-title">Future MAP Connect topics</p>
+          <p class="card-desc">__TOPICS_DESC__</p>
+        </div>
+      </div>
+      <svg class="chart" id="topics-chart" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+  </div>
+
+  <footer>
+    <span>__FOOTER_SOURCE__</span>
+    <span>Make AI Practical · MAP Connect</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  // ---------- helpers ----------
+  const NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){
+    const n = document.createElementNS(NS, tag);
+    for(const k in attrs){ n.setAttribute(k, attrs[k]); }
+    if(parent) parent.appendChild(n);
+    return n;
+  }
+  function clear(node){ while(node.firstChild) node.removeChild(node.firstChild); }
+
+  // ---------- generated timestamp ----------
+  document.getElementById("generated-at").innerHTML =
+    "Generated: <b>" + new Date().toLocaleString('en-AU', {dateStyle:'medium', timeStyle:'short'}) + "</b>";
+
+  // ---------- KPI count-up ----------
+  document.querySelectorAll(".kpi-num").forEach(function(node){
+    const target = parseInt(node.dataset.count, 10);
+    const suffix = node.dataset.suffix || "";
+    const dur = 900;
+    const start = performance.now();
+    function frame(now){
+      const p = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      node.textContent = Math.round(eased * target) + suffix;
+      if(p < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+
+  // ============ TIMELINE CHART ============
+  const timelineData = __TIMELINE_JS__;
+  const timelineSvg = document.getElementById("timeline-chart");
+  function drawTimeline(mode){
+    clear(timelineSvg);
+    const W=640,H=260, padL=34, padR=18, padT=18, padB=34;
+    const plotW = W-padL-padR, plotH = H-padT-padB;
+    const maxVal = mode==="daily" ? Math.max(...timelineData.daily) : Math.max(...timelineData.cumulative);
+    const niceMax = Math.ceil(maxVal/5)*5;
+    const n = timelineData.labels.length;
+    const bandW = plotW/n;
+
+    // gridlines + y labels
+    const steps=5;
+    for(let i=0;i<=steps;i++){
+      const v = niceMax*i/steps;
+      const y = padT + plotH - (v/niceMax)*plotH;
+      el("line",{x1:padL,y1:y,x2:W-padR,y2:y,stroke:"var(--line)","stroke-width":1},timelineSvg);
+      el("text",{x:padL-8,y:y+4,"text-anchor":"end",class:"axis-label"},timelineSvg).textContent = Math.round(v);
+    }
+
+    if(mode==="daily"){
+      timelineData.labels.forEach(function(label,i){
+        const v = timelineData.daily[i];
+        const barW = bandW*0.46;
+        const x = padL + i*bandW + bandW/2 - barW/2;
+        const barH = (v/niceMax)*plotH;
+        const y = padT + plotH - barH;
+        el("rect",{class:"bar-rect",x:x,y:y,width:barW,height:barH,rx:6,fill:"var(--jade)"},timelineSvg);
+        el("text",{x:x+barW/2,y:y-8,"text-anchor":"middle",class:"bar-value"},timelineSvg).textContent = v;
+        el("text",{x:padL+i*bandW+bandW/2,y:H-10,"text-anchor":"middle",class:"bar-label"},timelineSvg).textContent = label;
+      });
+    } else {
+      // cumulative area + line
+      let pathD = "";
+      const pts = timelineData.cumulative.map(function(v,i){
+        const x = padL + i*bandW + bandW/2;
+        const y = padT + plotH - (v/niceMax)*plotH;
+        return [x,y];
+      });
+      pathD = "M"+pts.map(p=>p.join(",")).join(" L");
+      const areaD = pathD + ` L${pts[pts.length-1][0]},${padT+plotH} L${pts[0][0]},${padT+plotH} Z`;
+      el("path",{d:areaD,fill:"var(--amber)",opacity:"0.14"},timelineSvg);
+      el("path",{d:pathD,fill:"none",stroke:"var(--amber-deep)","stroke-width":2.5,"stroke-linejoin":"round","stroke-linecap":"round"},timelineSvg);
+      pts.forEach(function(p,i){
+        el("circle",{cx:p[0],cy:p[1],r:4.5,fill:"var(--amber-deep)"},timelineSvg);
+        el("text",{x:p[0],y:p[1]-12,"text-anchor":"middle",class:"bar-value"},timelineSvg).textContent = timelineData.cumulative[i];
+        el("text",{x:p[0],y:H-10,"text-anchor":"middle",class:"bar-label"},timelineSvg).textContent = timelineData.labels[i];
+      });
+    }
+  }
+  drawTimeline("daily");
+  document.getElementById("timeline-toggle").addEventListener("click", function(e){
+    const btn = e.target.closest("button"); if(!btn) return;
+    this.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    drawTimeline(btn.dataset.mode);
+  });
+
+  // ============ ROLE CHART ============
+  const roleData = __ROLE_JS__;
+  const roleFootnotes = __ROLE_FOOTNOTES_JS__;
+  const roleSvg = document.getElementById("role-chart");
+  function drawHBar(svg, data, opts){
+    opts = opts||{};
+    clear(svg);
+    const W = opts.w||560, H = opts.h||300;
+    const padL = opts.padL||210, padR=50, padT=10, padB=10;
+    const rowH = (H-padT-padB)/data.length;
+    const maxV = Math.max(...data.map(d=>d[1]));
+    const plotW = W-padL-padR;
+    const colors = opts.colors || ["var(--jade)"];
+    data.forEach(function(d,i){
+      const [label,val] = d;
+      const y = padT + i*rowH + rowH*0.22;
+      const barH = rowH*0.56;
+      const barW = (val/maxV)*plotW;
+      const color = colors[i % colors.length];
+      el("text",{x:padL-12,y:y+barH/2+4,"text-anchor":"end",class:"bar-label"},svg).textContent = label;
+      el("rect",{class:"bar-rect",x:padL,y:y,width:Math.max(barW,2),height:barH,rx:5,fill:color},svg);
+      el("text",{x:padL+barW+8,y:y+barH/2+4,class:"bar-value"},svg).textContent = val;
+    });
+  }
+  const roleColors = ["var(--jade)","var(--jade)","var(--sage)","var(--amber)","var(--amber)","var(--plum)","var(--grey-bar)","var(--grey-bar)"];
+  function drawRole(mode){
+    drawHBar(roleSvg, roleData[mode], {w:560,h:300,padL:200,colors:roleColors});
+    document.getElementById("role-footnote").textContent = roleFootnotes[mode];
+  }
+  drawRole("split");
+  document.getElementById("role-toggle").addEventListener("click", function(e){
+    const btn = e.target.closest("button"); if(!btn) return;
+    this.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    drawRole(btn.dataset.mode);
+  });
+
+  // ============ FUTURE TOPICS CHART ============
+  const topicsData = __TOPICS_JS__;
+  const topicsSvg = document.getElementById("topics-chart");
+  (function drawTopics(){
+    clear(topicsSvg);
+    const W=640,H=260, padL=270, padR=50, padT=8, padB=8;
+    const rowH = (H-padT-padB)/topicsData.length;
+    const maxV = Math.max(...topicsData.map(d=>d[1]));
+    const plotW = W-padL-padR;
+    topicsData.forEach(function(d,i){
+      const [label,val,color] = d;
+      const y = padT + i*rowH + rowH*0.2;
+      const barH = rowH*0.6;
+      const barW = (val/maxV)*plotW;
+      el("text",{x:padL-12,y:y+barH/2+4,"text-anchor":"end",class:"bar-label"},topicsSvg).textContent = label;
+      el("rect",{class:"bar-rect",x:padL,y:y,width:Math.max(barW,2),height:barH,rx:5,fill:color},topicsSvg);
+      el("text",{x:padL+barW+8,y:y+barH/2+4,class:"bar-value"},topicsSvg).textContent = val;
+    });
+  })();
+
+  // ============ EXPERIENCE DONUT ============
+  const expData = __EXP_JS__;
+  const expSvg = document.getElementById("exp-chart");
+  (function drawDonut(){
+    clear(expSvg);
+    const cx=140, cy=140, rOuter=110, rInner=64;
+    const total = expData.reduce((s,d)=>s+d[1],0);
+    let angle = -Math.PI/2;
+    expData.forEach(function(d){
+      const frac = d[1]/total;
+      const a0 = angle, a1 = angle + frac*Math.PI*2;
+      angle = a1;
+      const large = (a1-a0) > Math.PI ? 1 : 0;
+      const x0o = cx+rOuter*Math.cos(a0), y0o = cy+rOuter*Math.sin(a0);
+      const x1o = cx+rOuter*Math.cos(a1), y1o = cy+rOuter*Math.sin(a1);
+      const x0i = cx+rInner*Math.cos(a1), y0i = cy+rInner*Math.sin(a1);
+      const x1i = cx+rInner*Math.cos(a0), y1i = cy+rInner*Math.sin(a0);
+      const path = `M${x0o},${y0o} A${rOuter},${rOuter} 0 ${large} 1 ${x1o},${y1o} L${x0i},${y0i} A${rInner},${rInner} 0 ${large} 0 ${x1i},${y1i} Z`;
+      el("path",{class:"donut-seg",d:path,fill:d[2]},expSvg);
+    });
+    el("text",{x:cx,y:cy-4,"text-anchor":"middle",class:"bar-value",style:"font-size:26px"},expSvg).textContent = total;
+    el("text",{x:cx,y:cy+16,"text-anchor":"middle",class:"axis-label"},expSvg).textContent = "attendees";
+
+    const legend = document.getElementById("exp-legend");
+    clear(legend);
+    expData.forEach(function(d){
+      const item = document.createElement("div"); item.className="legend-item";
+      const sw = document.createElement("span"); sw.className="legend-swatch";
+      sw.style.background = d[2];
+      item.appendChild(sw);
+      const pct = Math.round(d[1]/total*100);
+      const txt = document.createElement("span");
+      txt.textContent = d[0] + " — " + d[1] + " (" + pct + "%)";
+      item.appendChild(txt);
+      legend.appendChild(item);
+    });
+  })();
+
+})();
+</script>
+</body>
+</html>

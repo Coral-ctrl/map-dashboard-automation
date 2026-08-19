@@ -1,0 +1,16 @@
+# Never commit your API keys
+.env
+
+# Never commit real attendee data — CSVs you drop in, and every
+# generated dashboard folder (they contain names, emails, and answers).
+inputs/*.csv
+outputs/*/
+
+# Python housekeeping — catches both .venv and .venv-1
+.venv*/
+__pycache__/
+*.pyc
+
+# OS housekeeping
+.DS_Store
+Thumbs.db
