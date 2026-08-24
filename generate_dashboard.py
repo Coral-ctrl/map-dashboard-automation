@@ -329,18 +329,22 @@ after) with this exact shape:
 
 {{
   "speaker_question_clusters": [
-    {{"title": "short theme name", "count": <number of attendees whose question fits this theme>, "quotes": ["1-2 representative verbatim questions from the list above"]}}
+    {{"title": "short theme name", "count": <number of attendees whose question fits this theme>, "quotes": ["1-3 representative verbatim questions from the list above"]}}
   ],
   "future_topic_clusters": [
-    {{"title": "short theme name", "count": <number>, "quotes": ["1-2 representative verbatim answers"]}}
+    {{"title": "short theme name", "count": <number>, "quotes": ["1-3 representative verbatim answers"]}}
   ],
+  "non_specific_speaker_count": <number of speaker-question answers that are filler / not an actual question>,
+  "non_specific_topics_count": <number of future-topic answers that are filler / not an actual topic>,
   "timeline_insight": "one short sentence (under 160 characters) describing the registration timing pattern, using only the numbers given above",
   "role_insight": "one short sentence (under 160 characters) describing the role/industry mix, using only the numbers given above"
 }}
 
 Rules:
-- Every count must be based on how many of the listed answers genuinely fit that theme — don't inflate.
+- Before clustering, set aside any answer that isn't a genuine, specific question or topic — filler like "n/a", "none", "no", "nothing", "just curious", "no questions for now", "无", "没有", or similar non-answers (in English or Chinese). Do not build a cluster around these and do not let them inflate any cluster's count — instead, count how many were set aside from each list and report them as non_specific_speaker_count / non_specific_topics_count.
+- Every remaining count must be based on how many of the listed answers genuinely fit that theme — don't inflate.
 - Aim for 4-6 clusters per list. It's fine to have fewer if the answers are sparse.
+- Include up to 3 quotes per cluster where enough distinct answers support it — fewer is fine for smaller clusters, but don't cap yourself at 2 if a third good one exists.
 - Quotes must be copied verbatim from the lists above, not paraphrased.
 - Keep cluster titles under 6 words.
 - If a list is empty, return an empty array for that key.
