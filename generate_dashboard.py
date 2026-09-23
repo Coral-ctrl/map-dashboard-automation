@@ -79,7 +79,7 @@ COLUMN_HINTS = {
     "total_paid": ["total paid"],
     "role": ["role", "best describes"],
     "experience": ["experience", "how would you describe"],
-    "speaker_q": ["speaker", "question for"],
+    "speaker_q": ["speaker", "question for", "ask the guest", "love to ask", "guest"],
     "future_topics": ["topic", "future", "explore"],
 }
 COLUMN_OVERRIDE = {
