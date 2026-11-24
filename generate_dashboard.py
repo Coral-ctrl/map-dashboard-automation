@@ -66,7 +66,7 @@ SOURCE_LABEL = "Eventbrite order report"
 
 # Which self-reported experience answers count as "already experienced"
 # for the KPI card. Edit this list if Eventbrite's answer wording changes.
-EXPERIENCED_LABELS = ["Regular user", "Advanced"]
+EXPERIENCED_LABELS = ["Regular user", "Intermediate", "Advanced", "Expert"]
 
 # Keyword hints used to auto-detect each CSV column. The script checks
 # each column's header (lowercased) for these substrings, in order.
@@ -79,6 +79,7 @@ COLUMN_HINTS = {
     "total_paid": ["total paid"],
     "role": ["role", "best describes", "which industry"],
     "experience": ["experience", "how would you describe"],
+    "session_goals": ["most like to get", "get from this session", "最希望从本次"],
     "speaker_q": ["speaker", "question for", "ask the guest", "love to ask", "guest"],
     "future_topics": ["topic", "future", "explore"],
 }
@@ -179,6 +180,17 @@ def shorten_label(label, max_words=6):
     return label if len(words) <= max_words else " ".join(words[:max_words]) + "…"
 
 
+def strip_translation(label):
+    """Drop a trailing Chinese translation in full-width brackets
+    ('Networking （结识同行）' -> 'Networking') so chart labels fit."""
+    return re.sub(r"\s*（[^）]*）\s*$", "", label).strip() or label
+
+
+def is_experienced(answer):
+    low = answer.lower()
+    return any(low.startswith(label.lower()) for label in EXPERIENCED_LABELS)
+
+
 def split_multiselect(series):
     """Eventbrite multi-select answers are usually pipe-separated ('A | B'),
     since commas often appear inside individual option names themselves
@@ -192,7 +204,7 @@ def split_multiselect(series):
         else:
             parts = re.split(r"[,;]", raw)
         for p in parts:
-            p = p.strip()
+            p = strip_translation(p.strip())
             if p:
                 counts[p] += 1
     return counts.most_common()
@@ -215,7 +227,9 @@ def compute_stats(df, cols):
     # ---------- role / industry ----------
     role_split = split_multiselect(df[cols["role"]]) if cols["role"] else []
     role_raw = (
-        df[cols["role"]].dropna().astype(str).str.strip().value_counts().items()
+        df[cols["role"]].dropna().astype(str).apply(
+            lambda v: " | ".join(strip_translation(p.strip()) for p in v.split("|"))
+        ).value_counts().items()
         if cols["role"]
         else []
     )
@@ -234,19 +248,25 @@ def compute_stats(df, cols):
         if cols["experience"]
         else pd.Series(dtype=int)
     )
-    def _is_experienced(v):
-        v_low = v.lower()
-        return any(v_low.startswith(label.lower()) for label in EXPERIENCED_LABELS)
-
     experienced_count = int(
         df[cols["experience"]]
         .dropna()
         .astype(str)
         .str.strip()
-        .apply(_is_experienced)
+        .apply(is_experienced)
         .sum()
     ) if cols["experience"] else 0
     experienced_pct = round(experienced_count / total * 100) if total else 0
+
+    # ---------- session goals (fixed-choice question, so just count it) ----------
+    goal_counts = Counter()
+    goals_answered = 0
+    if cols["session_goals"]:
+        for val in df[cols["session_goals"]].dropna().astype(str):
+            # Split on | only: option text can itself contain commas.
+            picks = {strip_translation(x.strip()) for x in val.split("|") if x.strip()}
+            goal_counts.update(picks)
+            goals_answered += bool(picks)
 
     # ---------- engagement (speaker question left blank or not) ----------
     if cols["speaker_q"]:
@@ -255,7 +275,6 @@ def compute_stats(df, cols):
     else:
         q_series = pd.Series(dtype=str)
     engagement_count = len(q_series)
-    engagement_pct = round(engagement_count / total * 100) if total else 0
 
     # ---------- future topics (raw non-empty answers) ----------
     if cols["future_topics"]:
@@ -265,6 +284,17 @@ def compute_stats(df, cols):
     else:
         topics_series = pd.Series(dtype=str)
         blank_count = total
+
+    # Eventbrite joins multiple-choice picks as 'A | B'. If that's what this
+    # event used, count the options exactly; otherwise the answers are free
+    # text and the clustering step groups them into themes.
+    topic_picks = Counter()
+    for val in topics_series:
+        topic_picks.update({strip_translation(x.strip()) for x in val.split("|") if x.strip()})
+    topics_are_choices = (
+        any("|" in val for val in topics_series)
+        and sum(n > 1 for n in topic_picks.values()) >= len(topic_picks) / 2
+    )
 
     # ---------- ticketing / payment blurb ----------
     ticket_types = (
@@ -293,10 +323,12 @@ def compute_stats(df, cols):
         "exp_counts": list(exp_counts.items()),
         "experienced_count": experienced_count,
         "experienced_pct": experienced_pct,
+        "goal_counts": goal_counts.most_common(),
+        "goals_answered": goals_answered,
         "engagement_count": engagement_count,
-        "engagement_pct": engagement_pct,
         "speaker_questions": list(q_series),
-        "future_topics_answers": list(topics_series),
+        "topic_counts": topic_picks.most_common() if topics_are_choices else [],
+        "future_topics_answers": [] if topics_are_choices else list(topics_series),
         "blank_topics_count": int(blank_count),
         "ticket_types": ticket_types,
         "money_blurb": money_blurb,
@@ -538,6 +570,16 @@ def build_speakerq_html(clusters):
 # ============================================================
 
 
+def real_questions(stats, ai):
+    """(count, percent) of attendees who asked an actual question: everyone
+    who filled in the box, minus the filler ('no', 'n/a', '无') that the
+    clustering step set aside."""
+    filler = int(ai.get("non_specific_speaker_count") or 0)
+    count = max(stats["engagement_count"] - filler, 0)
+    pct = round(count / stats["total"] * 100) if stats["total"] else 0
+    return count, pct
+
+
 def build_html(stats, ai, source_filename):
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
@@ -551,7 +593,8 @@ def build_html(stats, ai, source_filename):
     kpi_total_sub = f"{stats['ticket_types']} · {stats['money_blurb']} · {stats['attending_pct']}% confirmed Attending"
     kpi_peak_sub = f"{stats['peak_date'].strftime('%a %b %d')} — {stats['peak_pct']}% of all registrations landed in one day"
     kpi_exp_sub = f"{stats['experienced_count']} of {stats['total']} attendees reported regular or advanced AI use"
-    kpi_eng_sub = f"{stats['engagement_count']} of {stats['total']} left a question or topic ask"
+    question_count, question_pct = real_questions(stats, ai)
+    kpi_eng_sub = f"{question_count} of {stats['total']} attendees — answers like “no” or “n/a” not counted"
 
     timeline_footnote = (
         " · ".join(f"{l}: {v}" for l, v in zip(dates, stats["timeline"]["daily"]))
@@ -563,15 +606,30 @@ def build_html(stats, ai, source_filename):
     if ai.get("role_insight"):
         role_desc = ai["role_insight"]
 
+    goals_js = [[label, count] for label, count in stats["goal_counts"]]
+    goals_desc = ""
+    if goals_js:
+        top_count = goals_js[0][1]
+        top_labels = " / ".join(label for label, count in goals_js if count == top_count)
+        top_pct = round(top_count / stats["goals_answered"] * 100)
+        goals_desc = (
+            f"Top answer: {top_labels} — {top_count} of "
+            f"{stats['goals_answered']} who answered ({top_pct}%)."
+        )
+        goals_blank = stats["total"] - stats["goals_answered"]
+        if goals_blank:
+            goals_js.append(["No answer", goals_blank])
+
     speakerq_desc = (
-        f"{stats['engagement_count']} of {stats['total']} attendees left a question. "
+        f"{question_count} of {stats['total']} attendees asked a question. "
         f"Grouped by similarity, ranked by how many asked something similar — "
-        f"1–2 representative questions per cluster, ready to read out."
+        f"up to 3 representative questions per cluster, ready to read out."
     )
     topics_desc = (
-        'From the future-topics question only, tagged by theme. '
-        '"No specific ask / blank" covers unanswered entries.'
-    )
+        "Options picked on the form; attendees could pick more than one. "
+        if stats["topic_counts"]
+        else "From the future-topics question only, tagged by theme. "
+    ) + '"No specific ask / blank" covers unanswered entries.'
 
     role_split_pairs = [[label, count] for label, count in stats["role_split"]]
     role_raw_pairs = [[label, count] for label, count in stats["role_raw"]]
@@ -580,12 +638,14 @@ def build_html(stats, ai, source_filename):
         if stats["multi_role_count"]
         else "Each attendee selected a single role."
     )
-    role_footnote_raw = "Raw combinations exactly as submitted."
+    role_footnote_raw = "Raw combinations as submitted."
 
-    topics_clusters = ai.get("future_topic_clusters", [])
+    topic_rows = stats["topic_counts"] or sorted(
+        ((c.get("title", ""), c.get("count", 0)) for c in ai.get("future_topic_clusters", [])),
+        key=lambda row: -row[1],
+    )
     topics_js = [
-        [c.get("title", ""), c.get("count", 0), color_for_rank(i)]
-        for i, c in enumerate(sorted(topics_clusters, key=lambda c: -c.get("count", 0)))
+        [label, count, color_for_rank(i)] for i, (label, count) in enumerate(topic_rows)
     ]
     topics_js.append(["No specific ask / blank", stats["blank_topics_count"], "var(--grey-bar)"])
 
@@ -605,11 +665,12 @@ def build_html(stats, ai, source_filename):
         "__KPI_PEAK_SUB__": kpi_peak_sub,
         "__KPI_EXP_PCT__": str(stats["experienced_pct"]),
         "__KPI_EXP_SUB__": kpi_exp_sub,
-        "__KPI_ENG_PCT__": str(stats["engagement_pct"]),
+        "__KPI_ENG_PCT__": str(question_pct),
         "__KPI_ENG_SUB__": kpi_eng_sub,
         "__TIMELINE_DESC__": "Registrations across the data window shown above.",
         "__TIMELINE_FOOTNOTE__": timeline_footnote,
         "__ROLE_DESC__": role_desc,
+        "__GOALS_DESC__": html.escape(goals_desc),
         "__SPEAKERQ_DESC__": speakerq_desc,
         "__SPEAKERQ_CLUSTERS_HTML__": build_speakerq_html(ai.get("speaker_question_clusters", [])),
         "__TOPICS_DESC__": topics_desc,
@@ -617,6 +678,7 @@ def build_html(stats, ai, source_filename):
         "__TIMELINE_JS__": json.dumps(stats["timeline"]),
         "__ROLE_JS__": json.dumps({"split": role_split_pairs, "raw": role_raw_pairs}),
         "__ROLE_FOOTNOTES_JS__": json.dumps({"split": role_footnote_split, "raw": role_footnote_raw}),
+        "__GOALS_JS__": json.dumps(goals_js),
         "__TOPICS_JS__": json.dumps(topics_js),
         "__EXP_JS__": json.dumps(exp_js),
     }
@@ -637,7 +699,7 @@ def render_outputs(html_path, out_dir):
 
     pdf_path = out_dir / "dashboard.pdf"
     full_png_path = out_dir / "dashboard-full.png"
-    card_ids = ["timeline-card", "role-card", "exp-card", "speakerq-card", "topics-card"]
+    card_ids = ["timeline-card", "role-card", "exp-card", "goals-card", "speakerq-card", "topics-card"]
     card_pngs = {}
 
     with sync_playwright() as p:
@@ -664,6 +726,8 @@ def render_outputs(html_path, out_dir):
         png_page.screenshot(path=str(full_png_path), full_page=True)
         for card_id in card_ids:
             card_path = out_dir / f"{card_id}.png"
+            if png_page.locator(f"#{card_id}[hidden]").count():
+                continue  # this event's form didn't ask that question
             try:
                 png_page.locator(f"#{card_id}").screenshot(path=str(card_path))
                 card_pngs[card_id] = card_path
@@ -817,7 +881,11 @@ def main():
     print(f"Reading {csv_path.name}...")
     df, cols = load_csv(csv_path)
     stats = compute_stats(df, cols)
-    print(f"  {stats['total']} rows · {stats['engagement_count']} left a speaker question")
+    print(f"  {stats['total']} rows · {stats['engagement_count']} filled in the speaker question")
+    # Answer wording changes per event, so show what the experience KPI counts.
+    for heading, wanted in (("counted as", True), ("not counted as", False)):
+        names = [shorten_label(a) for a, _ in stats["exp_counts"] if is_experienced(a) == wanted]
+        print(f"  {heading} regular/advanced AI users: {', '.join(names) or '(none)'}")
 
     # The output folder is named after the CSV itself (not today's date),
     # so it stays the same across both runs of the manual-clustering flow —
@@ -871,7 +939,7 @@ building the dashboard, PDF, images, and Notion upload from there.
         f"Total registrations: {stats['total']} · "
         f"Peak day: {stats['peak_date'].strftime('%b %d')} ({stats['peak_val']}) · "
         f"Regular/advanced AI users: {stats['experienced_pct']}% · "
-        f"Left a question: {stats['engagement_pct']}%"
+        f"Asked a question: {real_questions(stats, ai)[1]}%"
     )
     notion_url = upload_to_notion(title, summary_text, full_png_path, card_pngs)
     if notion_url:

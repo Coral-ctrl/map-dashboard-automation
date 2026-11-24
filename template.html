@@ -144,12 +144,15 @@
     grid-template-areas:
       "timeline timeline"
       "role exp"
+      "goals goals"
       "speakerq speakerq"
       "topics topics";
     gap:16px;
   }
+  .grid.no-goals{grid-template-areas:"timeline timeline" "role exp" "speakerq speakerq" "topics topics";}
   @media (max-width:860px){
-    .grid{grid-template-columns:1fr; grid-template-areas:"timeline" "role" "exp" "speakerq" "topics";}
+    .grid{grid-template-columns:1fr; grid-template-areas:"timeline" "role" "exp" "goals" "speakerq" "topics";}
+    .grid.no-goals{grid-template-areas:"timeline" "role" "exp" "speakerq" "topics";}
   }
   .card{
     background:var(--surface);
@@ -161,6 +164,7 @@
   #timeline-card{grid-area:timeline;}
   #role-card{grid-area:role;}
   #exp-card{grid-area:exp;}
+  #goals-card{grid-area:goals;}
   #speakerq-card{grid-area:speakerq;}
   #topics-card{grid-area:topics;}
 
@@ -282,7 +286,7 @@
       <div class="sub">__KPI_EXP_SUB__</div>
     </div>
     <div class="kpi accent">
-      <div class="label">Left a question or topic ask</div>
+      <div class="label">Asked the speaker a question</div>
       <div class="kpi-num" data-count="__KPI_ENG_PCT__" data-suffix="%">0</div>
       <div class="sub">__KPI_ENG_SUB__</div>
     </div>
@@ -332,6 +336,17 @@
       </div>
       <svg class="chart" id="exp-chart" viewBox="0 0 280 280" preserveAspectRatio="xMidYMid meet"></svg>
       <div class="legend" id="exp-legend"></div>
+    </div>
+
+    <!-- SESSION GOALS (hidden when the form didn't ask this question) -->
+    <div class="card" id="goals-card">
+      <div class="card-head">
+        <div>
+          <p class="card-title">What attendees want from this session</p>
+          <p class="card-desc">__GOALS_DESC__</p>
+        </div>
+      </div>
+      <svg class="chart" id="goals-chart" viewBox="0 0 640 220" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
 
     <!-- SPEAKER QUESTIONS -->
@@ -465,24 +480,47 @@ __SPEAKERQ_CLUSTERS_HTML__
     opts = opts||{};
     clear(svg);
     const W = opts.w||560, H = opts.h||300;
-    const padL = opts.padL||210, padR=50, padT=10, padB=10;
+    const padR=50, padT=10, padB=10;
     const rowH = (H-padT-padB)/data.length;
     const maxV = Math.max(...data.map(d=>d[1]));
-    const plotW = W-padL-padR;
     const colors = opts.colors || ["var(--jade)"];
+    // Widen the label column to fit the longest label, up to 55% of the chart.
+    // Anything longer still is cut with "…" (hover shows the full text).
+    const labels = data.map(function(d){
+      const t = el("text",{class:"bar-label"},svg);
+      t.textContent = d[0];
+      return t;
+    });
+    const widest = Math.max(...labels.map(t=>t.getComputedTextLength()));
+    const padL = Math.min(W*0.55, Math.max(opts.padL||210, widest+24));
+    const plotW = W-padL-padR;
+    labels.forEach(function(t){
+      const full = t.textContent;
+      let s = full;
+      while(s.length>1 && t.getComputedTextLength() > padL-16){
+        s = s.slice(0,-1);
+        t.textContent = s.trimEnd() + "…";
+      }
+      if(s !== full) el("title",{},t).textContent = full;
+    });
     data.forEach(function(d,i){
-      const [label,val] = d;
+      const val = d[1];
       const y = padT + i*rowH + rowH*0.22;
       const barH = rowH*0.56;
       const barW = (val/maxV)*plotW;
       const color = colors[i % colors.length];
-      el("text",{x:padL-12,y:y+barH/2+4,"text-anchor":"end",class:"bar-label"},svg).textContent = label;
+      const t = labels[i];
+      t.setAttribute("x", padL-12);
+      t.setAttribute("y", y+barH/2+4);
+      t.setAttribute("text-anchor", "end");
       el("rect",{class:"bar-rect",x:padL,y:y,width:Math.max(barW,2),height:barH,rx:5,fill:color},svg);
       el("text",{x:padL+barW+8,y:y+barH/2+4,class:"bar-value"},svg).textContent = val;
     });
   }
   const roleColors = ["var(--jade)","var(--jade)","var(--sage)","var(--amber)","var(--amber)","var(--plum)","var(--grey-bar)","var(--grey-bar)"];
+  let roleMode = "split";
   function drawRole(mode){
+    roleMode = mode;
     drawHBar(roleSvg, roleData[mode], {w:560,h:300,padL:200,colors:roleColors});
     document.getElementById("role-footnote").textContent = roleFootnotes[mode];
   }
@@ -494,12 +532,35 @@ __SPEAKERQ_CLUSTERS_HTML__
     drawRole(btn.dataset.mode);
   });
 
+  // ============ SESSION GOALS CHART ============
+  const goalsData = __GOALS_JS__;
+  const goalsSvg = document.getElementById("goals-chart");
+  function drawGoals(){
+    const goalsH = 20 + goalsData.length*38;
+    goalsSvg.setAttribute("viewBox", "0 0 640 " + goalsH);
+    drawHBar(goalsSvg, goalsData, {w:640,h:goalsH,padL:270,colors:roleColors});
+  }
+  if(goalsData.length){
+    drawGoals();
+  } else {
+    const goalsCard = document.getElementById("goals-card");
+    goalsCard.hidden = true;
+    goalsCard.parentElement.classList.add("no-goals");
+  }
+
+  // Label widths change once the web fonts arrive, so measure again then.
+  document.fonts.ready.then(function(){
+    drawRole(roleMode);
+    if(goalsData.length) drawGoals();
+  });
+
   // ============ FUTURE TOPICS CHART ============
   const topicsData = __TOPICS_JS__;
   const topicsSvg = document.getElementById("topics-chart");
   (function drawTopics(){
     clear(topicsSvg);
-    const W=640,H=260, padL=270, padR=50, padT=8, padB=8;
+    const W=640, H=Math.max(260, 16+topicsData.length*35), padL=270, padR=50, padT=8, padB=8;
+    topicsSvg.setAttribute("viewBox", "0 0 " + W + " " + H);
     const rowH = (H-padT-padB)/topicsData.length;
     const maxV = Math.max(...topicsData.map(d=>d[1]));
     const plotW = W-padL-padR;
