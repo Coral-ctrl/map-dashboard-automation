@@ -176,6 +176,8 @@
     font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin:0 0 3px;
   }
   .card-desc{font-size:12.5px; color:var(--muted); max-width:46ch; line-height:1.4;}
+  #goals-card .card-desc{max-width:none;}
+  .card-summary{font-size:14.5px; color:var(--ink); line-height:1.55; max-width:95ch; margin:4px 0 16px;}
 
   .toggle{
     display:inline-flex; background:var(--surface-2); border:1px solid var(--line);
@@ -343,9 +345,10 @@
       <div class="card-head">
         <div>
           <p class="card-title">What attendees want from this session</p>
-          <p class="card-desc">__GOALS_DESC__</p>
+          <p class="card-desc">__GOALS_QUESTION__</p>
         </div>
       </div>
+      <p class="card-summary">__GOALS_SUMMARY__</p>
       <svg class="chart" id="goals-chart" viewBox="0 0 640 220" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
 

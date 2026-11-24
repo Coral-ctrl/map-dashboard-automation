@@ -186,6 +186,14 @@ def strip_translation(label):
     return re.sub(r"\s*（[^）]*）\s*$", "", label).strip() or label
 
 
+def choice_picks(answer):
+    """The options in one multiple-choice answer ('A | B'), without
+    translations or repeats, in the order given. Splits on | only: option
+    text can itself contain commas."""
+    options = (strip_translation(x.strip()) for x in answer.split("|") if x.strip())
+    return list(dict.fromkeys(options))
+
+
 def is_experienced(answer):
     low = answer.lower()
     return any(low.startswith(label.lower()) for label in EXPERIENCED_LABELS)
@@ -263,8 +271,7 @@ def compute_stats(df, cols):
     goals_answered = 0
     if cols["session_goals"]:
         for val in df[cols["session_goals"]].dropna().astype(str):
-            # Split on | only: option text can itself contain commas.
-            picks = {strip_translation(x.strip()) for x in val.split("|") if x.strip()}
+            picks = choice_picks(val)
             goal_counts.update(picks)
             goals_answered += bool(picks)
 
@@ -290,7 +297,7 @@ def compute_stats(df, cols):
     # text and the clustering step groups them into themes.
     topic_picks = Counter()
     for val in topics_series:
-        topic_picks.update({strip_translation(x.strip()) for x in val.split("|") if x.strip()})
+        topic_picks.update(choice_picks(val))
     topics_are_choices = (
         any("|" in val for val in topics_series)
         and sum(n > 1 for n in topic_picks.values()) >= len(topic_picks) / 2
@@ -323,6 +330,7 @@ def compute_stats(df, cols):
         "exp_counts": list(exp_counts.items()),
         "experienced_count": experienced_count,
         "experienced_pct": experienced_pct,
+        "goals_question": cols["session_goals"] or "",
         "goal_counts": goal_counts.most_common(),
         "goals_answered": goals_answered,
         "engagement_count": engagement_count,
@@ -570,6 +578,30 @@ def build_speakerq_html(clusters):
 # ============================================================
 
 
+def join_and(items):
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def goals_summary(stats):
+    """One written summary of the session-goals answers, e.g. '“A” leads with
+    12 of 34 attendees (35%), followed by “B” (8, 24%) and “C” (6, 18%).'"""
+    counts, answered = stats["goal_counts"], stats["goals_answered"]
+    if not counts:
+        return ""
+
+    def pct(n):
+        return round(n / answered * 100)
+
+    top = counts[0][1]
+    leaders = [f"“{label}”" for label, n in counts if n == top]
+    rest = [f"“{label}” ({n}, {pct(n)}%)" for label, n in counts if n < top]
+    verb, each = ("leads", "") if len(leaders) == 1 else ("lead", " each")
+    text = f"{join_and(leaders)} {verb} with {top} of {answered} attendees{each} ({pct(top)}%)"
+    if rest:
+        text += f", followed by {join_and(rest)}"
+    return text + "."
+
+
 def real_questions(stats, ai):
     """(count, percent) of attendees who asked an actual question: everyone
     who filled in the box, minus the filler ('no', 'n/a', '无') that the
@@ -607,18 +639,9 @@ def build_html(stats, ai, source_filename):
         role_desc = ai["role_insight"]
 
     goals_js = [[label, count] for label, count in stats["goal_counts"]]
-    goals_desc = ""
-    if goals_js:
-        top_count = goals_js[0][1]
-        top_labels = " / ".join(label for label, count in goals_js if count == top_count)
-        top_pct = round(top_count / stats["goals_answered"] * 100)
-        goals_desc = (
-            f"Top answer: {top_labels} — {top_count} of "
-            f"{stats['goals_answered']} who answered ({top_pct}%)."
-        )
-        goals_blank = stats["total"] - stats["goals_answered"]
-        if goals_blank:
-            goals_js.append(["No answer", goals_blank])
+    goals_blank = stats["total"] - stats["goals_answered"]
+    if goals_js and goals_blank:
+        goals_js.append(["No answer", goals_blank])
 
     speakerq_desc = (
         f"{question_count} of {stats['total']} attendees asked a question. "
@@ -670,7 +693,8 @@ def build_html(stats, ai, source_filename):
         "__TIMELINE_DESC__": "Registrations across the data window shown above.",
         "__TIMELINE_FOOTNOTE__": timeline_footnote,
         "__ROLE_DESC__": role_desc,
-        "__GOALS_DESC__": html.escape(goals_desc),
+        "__GOALS_QUESTION__": html.escape(stats["goals_question"]),
+        "__GOALS_SUMMARY__": html.escape(goals_summary(stats)),
         "__SPEAKERQ_DESC__": speakerq_desc,
         "__SPEAKERQ_CLUSTERS_HTML__": build_speakerq_html(ai.get("speaker_question_clusters", [])),
         "__TOPICS_DESC__": topics_desc,
