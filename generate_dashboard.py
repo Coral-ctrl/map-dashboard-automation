@@ -77,7 +77,7 @@ COLUMN_HINTS = {
     "attendee_status": ["attendee status"],
     "ticket_type": ["ticket type"],
     "total_paid": ["total paid"],
-    "role": ["role", "best describes"],
+    "role": ["role", "best describes", "which industry"],
     "experience": ["experience", "how would you describe"],
     "speaker_q": ["speaker", "question for", "ask the guest", "love to ask", "guest"],
     "future_topics": ["topic", "future", "explore"],
